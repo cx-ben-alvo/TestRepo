@@ -11,6 +11,15 @@ import (
 	"github.com/checkmarx/correlation-demo/internal/service"
 )
 
+// setSecurityHeaders sets a strict Content-Security-Policy and related
+// security headers on every response to prevent XSS and content-injection
+// attacks (CWE-346).
+func setSecurityHeaders(w http.ResponseWriter) {
+	w.Header().Set("Content-Security-Policy", "default-src 'none'")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("X-Frame-Options", "DENY")
+}
+
 type Handler struct {
 	repoStore  *repository.RepositoryStore
 	validator  *service.DomainValidator
@@ -30,6 +39,8 @@ func NewHandler(
 }
 
 func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
+	setSecurityHeaders(w)
+
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -64,6 +75,7 @@ func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("[REPO] Created repo ID=%d, name=%q, url=%q", lastID, name, gitURL)
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"id":      lastID,
@@ -72,6 +84,8 @@ func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) CloneRepo(w http.ResponseWriter, r *http.Request) {
+	setSecurityHeaders(w)
+
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -112,11 +126,14 @@ func (h *Handler) CloneRepo(w http.ResponseWriter, r *http.Request) {
 		"files":     result.Files,
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
 
 // ListRepos handles listing all repositories
 func (h *Handler) ListRepos(w http.ResponseWriter, r *http.Request) {
+	setSecurityHeaders(w)
+
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -144,5 +161,6 @@ func (h *Handler) ListRepos(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(repoMaps)
 }
