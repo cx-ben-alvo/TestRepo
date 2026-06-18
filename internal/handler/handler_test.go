@@ -336,3 +336,160 @@ func TestListRepos_MethodNotAllowed(t *testing.T) {
 		t.Errorf("expected 405, got %d", w.Code)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Content-Security-Policy header tests (CWE-346)
+// ---------------------------------------------------------------------------
+
+// checkCSPHeader is a helper that asserts the Content-Security-Policy header is
+// present and non-empty in the recorded response.
+func checkCSPHeader(t *testing.T, w *httptest.ResponseRecorder, context string) {
+	t.Helper()
+	csp := w.Header().Get("Content-Security-Policy")
+	if csp == "" {
+		t.Errorf("%s: Content-Security-Policy header is missing from response", context)
+	}
+}
+
+// TestCreateRepo_CSPHeaderPresent verifies that a successful CreateRepo response
+// carries the Content-Security-Policy header (CWE-346 remediation).
+func TestCreateRepo_CSPHeaderPresent(t *testing.T) {
+	h := setupTestHandler(t)
+
+	form := url.Values{
+		"name":    {"csp-test-repo"},
+		"git_url": {"https://github.com/user/repo"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/repo/create",
+		strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	h.CreateRepo(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d; body: %s", w.Code, w.Body.String())
+	}
+	checkCSPHeader(t, w, "CreateRepo success")
+}
+
+// TestCreateRepo_CSPHeaderOnBadRequest verifies that the CSP header is also
+// returned on 400 responses (e.g. missing required fields).
+func TestCreateRepo_CSPHeaderOnBadRequest(t *testing.T) {
+	h := setupTestHandler(t)
+
+	// Missing both name and git_url — should return 400.
+	req := httptest.NewRequest(http.MethodPost, "/api/repo/create",
+		strings.NewReader(""))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	h.CreateRepo(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+	checkCSPHeader(t, w, "CreateRepo bad request")
+}
+
+// TestCreateRepo_CSPHeaderOnNonWhitelistedDomain verifies the CSP header is
+// present when the domain is rejected by the validator.
+func TestCreateRepo_CSPHeaderOnNonWhitelistedDomain(t *testing.T) {
+	h := setupTestHandler(t)
+
+	form := url.Values{
+		"name":    {"csp-test"},
+		"git_url": {"https://evil.example.com/repo"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/repo/create",
+		strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	h.CreateRepo(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+	checkCSPHeader(t, w, "CreateRepo non-whitelisted domain")
+}
+
+// TestListRepos_CSPHeaderPresent verifies that ListRepos responses include the
+// Content-Security-Policy header.
+func TestListRepos_CSPHeaderPresent(t *testing.T) {
+	h := setupTestHandler(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/repo/list", nil)
+	w := httptest.NewRecorder()
+
+	h.ListRepos(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d; body: %s", w.Code, w.Body.String())
+	}
+	checkCSPHeader(t, w, "ListRepos success")
+}
+
+// TestListRepos_CSPHeaderOnMethodNotAllowed verifies that the CSP header is
+// returned even on 405 error responses from ListRepos.
+func TestListRepos_CSPHeaderOnMethodNotAllowed(t *testing.T) {
+	h := setupTestHandler(t)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/repo/list", nil)
+	w := httptest.NewRecorder()
+
+	h.ListRepos(w, req)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("expected 405, got %d", w.Code)
+	}
+	checkCSPHeader(t, w, "ListRepos method not allowed")
+}
+
+// TestCreateRepo_CSPHeaderValue verifies that the Content-Security-Policy header
+// has a value that includes a restrictive default-src directive.
+func TestCreateRepo_CSPHeaderValue(t *testing.T) {
+	h := setupTestHandler(t)
+
+	form := url.Values{
+		"name":    {"csp-value-test"},
+		"git_url": {"https://github.com/user/repo"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/repo/create",
+		strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	h.CreateRepo(w, req)
+
+	csp := w.Header().Get("Content-Security-Policy")
+	if csp == "" {
+		t.Fatal("Content-Security-Policy header is missing")
+	}
+	// The policy must include a default-src directive to be meaningful.
+	if !strings.Contains(csp, "default-src") {
+		t.Errorf("CSP header %q does not contain a default-src directive", csp)
+	}
+}
+
+// TestCreateRepo_XContentTypeOptionsHeader verifies that X-Content-Type-Options
+// is set to prevent MIME-type sniffing attacks.
+func TestCreateRepo_XContentTypeOptionsHeader(t *testing.T) {
+	h := setupTestHandler(t)
+
+	form := url.Values{
+		"name":    {"xcto-test"},
+		"git_url": {"https://github.com/user/repo"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/repo/create",
+		strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	h.CreateRepo(w, req)
+
+	xcto := w.Header().Get("X-Content-Type-Options")
+	if xcto != "nosniff" {
+		t.Errorf("expected X-Content-Type-Options: nosniff, got %q", xcto)
+	}
+}
