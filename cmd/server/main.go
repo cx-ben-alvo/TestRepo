@@ -17,6 +17,13 @@ func main() {
 	// Load configuration
 	cfg := config.Load()
 
+	// Validate TLS configuration before doing anything else.
+	// Both TLS_CERT_FILE and TLS_KEY_FILE must be provided; refusing to start
+	// without them ensures all traffic is encrypted (CWE-319).
+	if cfg.TLSCertFile == "" || cfg.TLSKeyFile == "" {
+		log.Fatal("TLS_CERT_FILE and TLS_KEY_FILE must be set; plain-text HTTP is not permitted")
+	}
+
 	// Initialize directories
 	initDirs(cfg)
 
@@ -40,8 +47,10 @@ func main() {
 	http.HandleFunc("/api/repo/clone", h.CloneRepo)
 	http.HandleFunc("/api/repo/list", h.ListRepos)
 
-	// Start server
-	fmt.Printf("Server starting on %s\n", cfg.ServerPort)
+	// Start server with TLS to encrypt data in transit (CWE-319 remediation).
+	// ListenAndServeTLS requires a valid certificate and private key; plain HTTP
+	// is not used anywhere in the serving path.
+	fmt.Printf("Server starting (HTTPS) on %s\n", cfg.ServerPort)
 	fmt.Println("")
 	fmt.Println("Endpoints:")
 	fmt.Println("  POST /api/repo/create - Create repo")
@@ -50,7 +59,7 @@ func main() {
 	fmt.Println("  GET  /api/repo/list - List all repos")
 	fmt.Println("")
 
-	log.Fatal(http.ListenAndServe(cfg.ServerPort, nil))
+	log.Fatal(http.ListenAndServeTLS(cfg.ServerPort, cfg.TLSCertFile, cfg.TLSKeyFile, nil))
 }
 
 func initDirs(cfg *config.Config) {
