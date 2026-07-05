@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -50,7 +51,24 @@ func main() {
 	fmt.Println("  GET  /api/repo/list - List all repos")
 	fmt.Println("")
 
-	log.Fatal(http.ListenAndServe(cfg.ServerPort, nil))
+	// TLS is required to protect data in transit (CWE-319).
+	// TLS_CERT_FILE and TLS_KEY_FILE must be set to paths of a valid
+	// X.509 certificate and its corresponding private key.
+	if err := validateTLSConfig(cfg.TLSCertFile, cfg.TLSKeyFile); err != nil {
+		log.Fatal(err)
+	}
+	log.Fatal(http.ListenAndServeTLS(cfg.ServerPort, cfg.TLSCertFile, cfg.TLSKeyFile, nil))
+}
+
+// validateTLSConfig returns an error when either TLS path is missing.
+// This is extracted from main() so it can be unit-tested without starting
+// an actual listener.
+func validateTLSConfig(certFile, keyFile string) error {
+	if certFile == "" || keyFile == "" {
+		return errors.New("TLS_CERT_FILE and TLS_KEY_FILE environment variables must be set; " +
+			"plain-text HTTP is not permitted")
+	}
+	return nil
 }
 
 func initDirs(cfg *config.Config) {
