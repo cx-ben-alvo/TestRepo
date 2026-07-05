@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
-	http1 "net/http"
+	"net/http"
 	"os"
 
 	"github.com/checkmarx/correlation-demo/internal/config"
@@ -41,7 +41,7 @@ func main() {
 	http.HandleFunc("/api/repo/list", h.ListRepos)
 
 	// Start server
-	fmt.Printf("Server starting on %s\n", cfg.ServerPort)
+	fmt.Printf("Server starting on %s (TLS)\n", cfg.ServerPort)
 	fmt.Println("")
 	fmt.Println("Endpoints:")
 	fmt.Println("  POST /api/repo/create - Create repo")
@@ -50,7 +50,12 @@ func main() {
 	fmt.Println("  GET  /api/repo/list - List all repos")
 	fmt.Println("")
 
-	log.Fatal(http1.ListenAndServe(cfg.ServerPort, nil))
+	// Use TLS (HTTPS) to protect data in transit (CWE-319).
+	// TLS_CERT_FILE and TLS_KEY_FILE must be set to valid PEM files.
+	if cfg.TLSCertFile == "" || cfg.TLSKeyFile == "" {
+		log.Fatal("TLS_CERT_FILE and TLS_KEY_FILE environment variables must be set to start the server securely")
+	}
+	log.Fatal(http.ListenAndServeTLS(cfg.ServerPort, cfg.TLSCertFile, cfg.TLSKeyFile, nil))
 }
 
 func initDirs(cfg *config.Config) {
