@@ -50,7 +50,13 @@ func main() {
 	fmt.Println("  GET  /api/repo/list - List all repos")
 	fmt.Println("")
 
-	log.Fatal(http.ListenAndServe(cfg.ServerPort, nil))
+	// Require TLS to protect data in transit (CWE-319).
+	// Set TLS_CERT_FILE and TLS_KEY_FILE environment variables with the paths
+	// to a valid TLS certificate and private key before starting the server.
+	if !cfg.TLSEnabled() {
+		log.Fatal("TLS is required: set TLS_CERT_FILE and TLS_KEY_FILE environment variables")
+	}
+	log.Fatal(http.ListenAndServeTLS(cfg.ServerPort, cfg.TLSCertFile, cfg.TLSKeyFile, nil))
 }
 
 func initDirs(cfg *config.Config) {
