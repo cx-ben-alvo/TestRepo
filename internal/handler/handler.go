@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/checkmarx/correlation-demo/internal/models"
 	"github.com/checkmarx/correlation-demo/internal/repository"
@@ -36,7 +37,9 @@ func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	name := r.FormValue("name")
-	gitURL := r.FormValue("git_url")
+	// Sanitize gitURL to prevent log forging (CWE-117): strip newline and
+	// carriage-return characters that an attacker could inject to forge log entries.
+	gitURL := strings.NewReplacer("\n", "", "\r", "").Replace(r.FormValue("git_url"))
 	repoType := r.FormValue("repo_type")
 
 	if name == "" || gitURL == "" {
