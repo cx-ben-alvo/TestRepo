@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
-	http2 "net/http"
+	"net/http"
 	"os"
 
 	"github.com/checkmarx/correlation-demo/internal/config"
@@ -50,14 +50,25 @@ func main() {
 	fmt.Println("  GET  /api/repo/list - List all repos")
 	fmt.Println("")
 
-	// Use TLS (HTTPS) when certificate and key files are configured.
-	// Set TLS_CERT_FILE and TLS_KEY_FILE environment variables to enable TLS.
-	if cfg.TLSEnabled() {
-		fmt.Println("TLS enabled: serving over HTTPS")
-		log.Fatal(http2.ListenAndServeTLS(cfg.ServerPort, cfg.TLSCertFile, cfg.TLSKeyFile, nil))
-	} else {
-		log.Fatal(http2.ListenAndServe(cfg.ServerPort, nil))
+	// TLS is required to protect data in transit (CWE-319).
+	// Set TLS_CERT_FILE and TLS_KEY_FILE environment variables to provide
+	// the certificate and key paths before starting the server.
+	if err := requireTLS(cfg); err != nil {
+		log.Fatal(err)
 	}
+
+	fmt.Println("TLS enabled: serving over HTTPS")
+	log.Fatal(http.ListenAndServeTLS(cfg.ServerPort, cfg.TLSCertFile, cfg.TLSKeyFile, nil))
+}
+
+// requireTLS enforces that TLS must be configured before the server starts.
+// It returns an error when TLS certificate and key paths are not both provided,
+// preventing the server from falling back to plain-text HTTP (CWE-319).
+func requireTLS(cfg *config.Config) error {
+	if !cfg.TLSEnabled() {
+		return fmt.Errorf("TLS is required: set TLS_CERT_FILE and TLS_KEY_FILE environment variables")
+	}
+	return nil
 }
 
 func initDirs(cfg *config.Config) {
