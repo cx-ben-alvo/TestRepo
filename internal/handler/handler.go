@@ -54,7 +54,9 @@ func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[VALIDATION] Domain validated successfully: %s", gitURL)
+	// Use %q to safely log user-controlled input: strconv.Quote escapes
+	// newlines and other control characters, preventing log forging (CWE-117).
+	log.Printf("[VALIDATION] Domain validated successfully: %q", gitURL)
 
 	lastID, err := h.repoStore.Create(name, gitURL, repoType)
 	if err != nil {
