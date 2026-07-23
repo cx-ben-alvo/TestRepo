@@ -28,6 +28,9 @@ func SecurityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("X-XSS-Protection", "1; mode=block")
 		// Disable caching of API responses that may contain sensitive data.
 		w.Header().Set("Cache-Control", "no-store")
+		// Enforce HTTPS for all future requests for one year; include subdomains
+		// and allow browsers to preload this policy (CWE-346 / HSTS).
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload")
 		next.ServeHTTP(w, r)
 	})
 }
