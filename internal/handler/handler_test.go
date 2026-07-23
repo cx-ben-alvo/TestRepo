@@ -210,6 +210,92 @@ func TestSecurityHeaders_ObjectSrcNone(t *testing.T) {
 	}
 }
 
+// TestSecurityHeaders_HSTSPresent verifies that the HTTP Strict-Transport-Security
+// header is set on every response, directly addressing the Missing HSTS Header
+// finding (CWE-346).
+func TestSecurityHeaders_HSTSPresent(t *testing.T) {
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+
+	SecurityHeaders(noopHandler).ServeHTTP(rr, req)
+
+	hsts := rr.Header().Get("Strict-Transport-Security")
+	if hsts == "" {
+		t.Fatal("Strict-Transport-Security header is missing; CWE-346 (Missing HSTS Header) not addressed")
+	}
+}
+
+// TestSecurityHeaders_HSTSValue verifies the exact HSTS directive: max-age of
+// at least one year (31 536 000 s), includeSubDomains, and preload.
+func TestSecurityHeaders_HSTSValue(t *testing.T) {
+	wantHSTS := "max-age=31536000; includeSubDomains; preload"
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+
+	SecurityHeaders(noopHandler).ServeHTTP(rr, req)
+
+	assertSecurityHeader(t, rr, "Strict-Transport-Security", wantHSTS)
+}
+
+// TestSecurityHeaders_HSTSMaxAge verifies that the max-age directive is present
+// and non-zero so that browsers enforce HTTPS for a meaningful period.
+func TestSecurityHeaders_HSTSMaxAge(t *testing.T) {
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+
+	SecurityHeaders(noopHandler).ServeHTTP(rr, req)
+
+	hsts := rr.Header().Get("Strict-Transport-Security")
+	if !strings.Contains(hsts, "max-age=") {
+		t.Errorf("Strict-Transport-Security does not contain max-age directive: %q", hsts)
+	}
+	if strings.Contains(hsts, "max-age=0") {
+		t.Errorf("Strict-Transport-Security max-age must not be 0: %q", hsts)
+	}
+}
+
+// TestSecurityHeaders_HSTSIncludeSubDomains verifies that the includeSubDomains
+// directive is present, ensuring that subdomain connections also use HTTPS.
+func TestSecurityHeaders_HSTSIncludeSubDomains(t *testing.T) {
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+
+	SecurityHeaders(noopHandler).ServeHTTP(rr, req)
+
+	hsts := rr.Header().Get("Strict-Transport-Security")
+	if !strings.Contains(hsts, "includeSubDomains") {
+		t.Errorf("Strict-Transport-Security does not include 'includeSubDomains': %q", hsts)
+	}
+}
+
+// TestSecurityHeaders_HSTSAppliedToAllMethods verifies that the HSTS header is
+// injected regardless of the HTTP method used by the client.
+func TestSecurityHeaders_HSTSAppliedToAllMethods(t *testing.T) {
+	methods := []string{
+		http.MethodGet,
+		http.MethodPost,
+		http.MethodPut,
+		http.MethodDelete,
+		http.MethodOptions,
+		http.MethodHead,
+	}
+
+	for _, method := range methods {
+		t.Run(method, func(t *testing.T) {
+			rr := httptest.NewRecorder()
+			req := httptest.NewRequest(method, "/", nil)
+
+			SecurityHeaders(noopHandler).ServeHTTP(rr, req)
+
+			hsts := rr.Header().Get("Strict-Transport-Security")
+			if hsts == "" {
+				t.Errorf("method %s: Strict-Transport-Security header is missing", method)
+			}
+		})
+	}
+}
+
 // TestSecurityHeaders_PreservesExistingHeaders verifies that SecurityHeaders
 // does not overwrite headers already set by the inner handler.
 func TestSecurityHeaders_PreservesExistingHeaders(t *testing.T) {
