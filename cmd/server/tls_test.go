@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/tls"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -63,11 +62,10 @@ func TestPlainHTTPConnectionRejected(t *testing.T) {
 
 	// Use a plain http.Client (no TLS config) to connect to the TLS server's
 	// address via http:// — this must fail because the server only speaks TLS.
-	plainClient := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-	}
+	// A default http.Client without any custom transport is sufficient; the
+	// server-side TLS handshake failure will cause the request to error out
+	// regardless of client-side TLS settings.
+	plainClient := &http.Client{}
 
 	// Build the plain-text URL by replacing "https://" with "http://".
 	plainURL := "http" + ts.URL[len("https"):]
