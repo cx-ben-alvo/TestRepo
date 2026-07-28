@@ -36,9 +36,10 @@ func main() {
 	h := handler.NewHandler(repoStore, validator, gitService)
 
 	// Register routes
-	http.HandleFunc("/api/repo/create", h.CreateRepo)
-	http.HandleFunc("/api/repo/clone", h.CloneRepo)
-	http.HandleFunc("/api/repo/list", h.ListRepos)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/repo/create", h.CreateRepo)
+	mux.HandleFunc("/api/repo/clone", h.CloneRepo)
+	mux.HandleFunc("/api/repo/list", h.ListRepos)
 
 	// Start server
 	fmt.Printf("Server starting on %s (TLS)\n", cfg.ServerPort)
@@ -54,10 +55,24 @@ func main() {
 	// Cleartext Transmission of Sensitive Information). The certificate and
 	// key paths are read from the TLS_CERT_FILE / TLS_KEY_FILE environment
 	// variables (or the defaults set in config.Load).
-	log.Fatal(http.ListenAndServeTLS(cfg.ServerPort, cfg.TLSCertFile, cfg.TLSKeyFile, nil))
+	// Wrap the mux with the HSTS middleware to instruct browsers to always
+	// use HTTPS for this host (fixes CWE-346: Missing HSTS Header).
+	log.Fatal(http.ListenAndServeTLS(cfg.ServerPort, cfg.TLSCertFile, cfg.TLSKeyFile, hstsMiddleware(mux)))
 }
 
 func initDirs(cfg *config.Config) {
 	os.MkdirAll(cfg.CloneDir, 0755)
 	os.MkdirAll(cfg.DownloadDir, 0755)
+}
+
+// hstsMiddleware wraps an http.Handler and sets the Strict-Transport-Security
+// header on every response, instructing browsers to only connect over HTTPS
+// for the next two years and to include subdomains (CWE-346).
+func hstsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// max-age=63072000 is two years in seconds; includeSubDomains ensures
+		// that subdomains are also covered by the HSTS policy.
+		w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
+		next.ServeHTTP(w, r)
+	})
 }
