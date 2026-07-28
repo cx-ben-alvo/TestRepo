@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -18,6 +19,9 @@ func TestServerUsesTLS(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/repo/list", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		// Set the HSTS header on every response, mirroring the production
+		// hstsMiddleware so the test handler is representative of the server.
+		w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("[]"))
 	})
@@ -74,6 +78,92 @@ func TestPlainHTTPConnectionRejected(t *testing.T) {
 	if err == nil {
 		resp.Body.Close()
 		t.Error("plain HTTP request to a TLS-only server should have failed, but it succeeded — server is not enforcing TLS")
+	}
+}
+
+// TestHSTSHeaderPresent verifies that the hstsMiddleware sets the
+// Strict-Transport-Security header on every response (CWE-346 regression guard).
+// The HSTS header instructs browsers to refuse plain-text HTTP connections to
+// this host for the duration of max-age, providing defence-in-depth on top of
+// TLS termination.
+func TestHSTSHeaderPresent(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/repo/list", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("[]"))
+	})
+
+	// Wrap with the production HSTS middleware.
+	ts := httptest.NewTLSServer(hstsMiddleware(mux))
+	defer ts.Close()
+
+	client := ts.Client()
+	resp, err := client.Get(ts.URL + "/api/repo/list")
+	if err != nil {
+		t.Fatalf("TLS request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	sts := resp.Header.Get("Strict-Transport-Security")
+	if sts == "" {
+		t.Error("Strict-Transport-Security header is missing: all HTTPS responses must include an HSTS header (CWE-346)")
+	}
+
+	// The policy must carry a meaningful max-age.
+	if !strings.Contains(sts, "max-age=") {
+		t.Errorf("Strict-Transport-Security = %q; want a value containing \"max-age=\"", sts)
+	}
+}
+
+// TestHSTSMiddlewareAllRoutes verifies that the HSTS header is present on
+// every route, not just /api/repo/list, ensuring the middleware is applied
+// at the mux level rather than per-handler.
+func TestHSTSMiddlewareAllRoutes(t *testing.T) {
+	routes := []struct {
+		path   string
+		method string
+	}{
+		{"/api/repo/list", http.MethodGet},
+		{"/api/repo/create", http.MethodPost},
+		{"/api/repo/clone", http.MethodPost},
+	}
+
+	mux := http.NewServeMux()
+	for _, route := range routes {
+		path := route.path // capture for closure
+		mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		})
+	}
+
+	ts := httptest.NewTLSServer(hstsMiddleware(mux))
+	defer ts.Close()
+
+	client := ts.Client()
+
+	for _, route := range routes {
+		t.Run(route.path, func(t *testing.T) {
+			var (
+				resp *http.Response
+				err  error
+			)
+			switch route.method {
+			case http.MethodGet:
+				resp, err = client.Get(ts.URL + route.path)
+			case http.MethodPost:
+				resp, err = client.Post(ts.URL+route.path, "application/x-www-form-urlencoded", nil)
+			}
+			if err != nil {
+				t.Fatalf("request to %s failed: %v", route.path, err)
+			}
+			defer resp.Body.Close()
+
+			sts := resp.Header.Get("Strict-Transport-Security")
+			if sts == "" {
+				t.Errorf("route %s: Strict-Transport-Security header is missing", route.path)
+			}
+		})
 	}
 }
 
