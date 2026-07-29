@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/checkmarx/correlation-demo/internal/models"
 	"github.com/checkmarx/correlation-demo/internal/repository"
@@ -62,7 +63,12 @@ func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[REPO] Created repo ID=%d, name='%s', url='%s'", lastID, name, gitURL)
+	// Sanitize user-supplied values before logging to prevent log forging (CWE-117).
+	// Newline and carriage-return characters are stripped so an attacker cannot
+	// inject fake log entries by embedding control characters in the repo name.
+	safeName := strings.NewReplacer("\n", "", "\r", "").Replace(name)
+	safeURL := strings.NewReplacer("\n", "", "\r", "").Replace(gitURL)
+	log.Printf("[REPO] Created repo ID=%d, name='%s', url='%s'", lastID, safeName, safeURL)
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
