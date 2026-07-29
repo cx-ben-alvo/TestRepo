@@ -5,16 +5,34 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/checkmarx/correlation-demo/internal/models"
 	"github.com/checkmarx/correlation-demo/internal/repository"
 	"github.com/checkmarx/correlation-demo/internal/service"
 )
 
+// repoStore defines the repository persistence operations used by the Handler.
+type repoStore interface {
+	Create(name, gitURL, repoType string) (int64, error)
+	GetByID(id int) (*models.Repository, error)
+	List() ([]*models.Repository, error)
+}
+
+// domainValidator defines the URL domain validation used by the Handler.
+type domainValidator interface {
+	IsWhitelisted(gitURL string) bool
+}
+
+// gitCloner defines the git clone operation used by the Handler.
+type gitCloner interface {
+	Clone(repoID int, gitURL string) (*service.CloneResult, error)
+}
+
 type Handler struct {
-	repoStore  *repository.RepositoryStore
-	validator  *service.DomainValidator
-	gitService *service.GitService
+	repoStore  repoStore
+	validator  domainValidator
+	gitService gitCloner
 }
 
 func NewHandler(
@@ -54,7 +72,10 @@ func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[VALIDATION] Domain validated successfully: %s", gitURL)
+	// Sanitize user-supplied value before logging to prevent log forging (CWE-117).
+	// Strip CR/LF characters that an attacker could use to inject fake log entries.
+	safeGitURL := strings.NewReplacer("\n", "", "\r", "").Replace(gitURL)
+	log.Printf("[VALIDATION] Domain validated successfully: %s", safeGitURL)
 
 	lastID, err := h.repoStore.Create(name, gitURL, repoType)
 	if err != nil {
