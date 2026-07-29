@@ -62,7 +62,8 @@ func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[REPO] Created repo ID=%d, name='%s', url='%s'", lastID, name, gitURL)
+	// Log only the database-generated ID (int64) to prevent log forging via user-controlled name/url values.
+	log.Printf("[REPO] Created repo ID=%d", lastID)
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
