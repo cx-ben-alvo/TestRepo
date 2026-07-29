@@ -5,11 +5,17 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/checkmarx/correlation-demo/internal/models"
 	"github.com/checkmarx/correlation-demo/internal/repository"
 	"github.com/checkmarx/correlation-demo/internal/service"
 )
+
+// sanitizeLogValue removes newline and carriage-return characters from a
+// string to prevent log-forging attacks (CWE-117). Attackers can embed CRLF
+// sequences in user-supplied values to inject fake log entries.
+var logNewlineReplacer = strings.NewReplacer("\n", " ", "\r", " ")
 
 type Handler struct {
 	repoStore  *repository.RepositoryStore
@@ -49,12 +55,12 @@ func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !h.validator.IsWhitelisted(gitURL) {
-		log.Printf("[VALIDATION] Rejected non-whitelisted domain: %s", gitURL)
+		log.Printf("[VALIDATION] Rejected non-whitelisted domain: %s", logNewlineReplacer.Replace(gitURL))
 		http.Error(w, "Only whitelisted domains are allowed (github.com, gitlab.com)", http.StatusBadRequest)
 		return
 	}
 
-	log.Printf("[VALIDATION] Domain validated successfully: %s", gitURL)
+	log.Printf("[VALIDATION] Domain validated successfully: %s", logNewlineReplacer.Replace(gitURL))
 
 	lastID, err := h.repoStore.Create(name, gitURL, repoType)
 	if err != nil {
@@ -62,7 +68,7 @@ func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[REPO] Created repo ID=%d, name='%s', url='%s'", lastID, name, gitURL)
+	log.Printf("[REPO] Created repo ID=%d, name='%s', url='%s'", lastID, logNewlineReplacer.Replace(name), logNewlineReplacer.Replace(gitURL))
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
