@@ -49,7 +49,7 @@ func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !h.validator.IsWhitelisted(gitURL) {
-		log.Printf("[VALIDATION] Rejected non-whitelisted domain: %s", gitURL)
+		log.Printf("[VALIDATION] Rejected non-whitelisted domain: %q", gitURL)
 		http.Error(w, "Only whitelisted domains are allowed (github.com, gitlab.com)", http.StatusBadRequest)
 		return
 	}
