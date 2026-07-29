@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/checkmarx/correlation-demo/internal/models"
 	"github.com/checkmarx/correlation-demo/internal/repository"
@@ -54,7 +55,8 @@ func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[VALIDATION] Domain validated successfully: %s", gitURL)
+	// Strip newline/carriage-return characters to prevent log forging (CWE-117).
+	log.Printf("[VALIDATION] Domain validated successfully: %s", strings.NewReplacer("\n", "", "\r", "").Replace(gitURL))
 
 	lastID, err := h.repoStore.Create(name, gitURL, repoType)
 	if err != nil {
