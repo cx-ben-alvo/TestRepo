@@ -11,6 +11,25 @@ import (
 	"github.com/checkmarx/correlation-demo/internal/service"
 )
 
+// SecurityHeaders is a middleware that sets security-related HTTP response
+// headers on every response, including a strict Content-Security-Policy.
+func SecurityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Content-Security-Policy: restrict resource origins to prevent XSS and
+		// data-injection attacks (CWE-346, OWASP A05).
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
+		// Prevent MIME-type sniffing.
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		// Prevent clickjacking.
+		w.Header().Set("X-Frame-Options", "DENY")
+		// Enable XSS filter in older browsers.
+		w.Header().Set("X-XSS-Protection", "1; mode=block")
+		// Do not leak referrer information.
+		w.Header().Set("Referrer-Policy", "no-referrer")
+		next.ServeHTTP(w, r)
+	})
+}
+
 type Handler struct {
 	repoStore  *repository.RepositoryStore
 	validator  *service.DomainValidator
