@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 
 	"github.com/checkmarx/correlation-demo/internal/models"
@@ -11,8 +12,17 @@ import (
 	"github.com/checkmarx/correlation-demo/internal/service"
 )
 
+// repoStoreInterface defines the subset of repository.RepositoryStore methods
+// used by the handler. Using an interface here decouples the handler from the
+// concrete store implementation, making the handler easier to unit test.
+type repoStoreInterface interface {
+	Create(name, gitURL, repoType string) (int64, error)
+	GetByID(id int) (*models.Repository, error)
+	List() ([]*models.Repository, error)
+}
+
 type Handler struct {
-	repoStore  *repository.RepositoryStore
+	repoStore  repoStoreInterface
 	validator  *service.DomainValidator
 	gitService *service.GitService
 }
@@ -62,7 +72,9 @@ func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[REPO] Created repo ID=%d, name='%s', url='%s'", lastID, name, gitURL)
+	// Use structured logging to avoid log forging: user-supplied values are passed
+	// as typed key-value attributes, not interpolated into the message template.
+	slog.Info("repo created", slog.Int64("id", lastID), slog.String("name", name), slog.String("url", gitURL))
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
