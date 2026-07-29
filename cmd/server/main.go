@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
-	http8 "net/http"
+	"net/http"
 	"os"
 
 	"github.com/checkmarx/correlation-demo/internal/config"
@@ -36,9 +36,9 @@ func main() {
 	h := handler.NewHandler(repoStore, validator, gitService)
 
 	// Register routes
-	http8.HandleFunc("/api/repo/create", h.CreateRepo)
-	http8.HandleFunc("/api/repo/clone", h.CloneRepo)
-	http8.HandleFunc("/api/repo/list", h.ListRepos)
+	http.HandleFunc("/api/repo/create", h.CreateRepo)
+	http.HandleFunc("/api/repo/clone", h.CloneRepo)
+	http.HandleFunc("/api/repo/list", h.ListRepos)
 
 	// Start server
 	fmt.Printf("Server starting on %s\n", cfg.ServerPort)
@@ -50,7 +50,23 @@ func main() {
 	fmt.Println("  GET  /api/repo/list - List all repos")
 	fmt.Println("")
 
-	log.Fatal(http8.ListenAndServe(cfg.ServerPort, nil))
+	if cfg.TLSEnabled() {
+		// Preferred path: serve over TLS to protect data in transit.
+		log.Printf("Starting HTTPS server on %s (TLS enabled)", cfg.ServerPort)
+		log.Fatal(http.ListenAndServeTLS(cfg.ServerPort, cfg.TLSCertFile, cfg.TLSKeyFile, nil))
+	} else if cfg.TLSInsecure == "true" {
+		// Development-only fallback: plain HTTP is intentionally insecure and
+		// must never be used in production. Set TLS_CERT_FILE and TLS_KEY_FILE
+		// environment variables to enable TLS.
+		log.Printf("WARNING: TLS is disabled (TLS_INSECURE=true). " +
+			"This must NOT be used in production. " +
+			"Set TLS_CERT_FILE and TLS_KEY_FILE to enable TLS.")
+		log.Fatal(http.ListenAndServe(cfg.ServerPort, nil))
+	} else {
+		log.Fatal("TLS configuration is required. " +
+			"Set TLS_CERT_FILE and TLS_KEY_FILE environment variables, " +
+			"or set TLS_INSECURE=true for local development only.")
+	}
 }
 
 func initDirs(cfg *config.Config) {
