@@ -11,8 +11,16 @@ import (
 	"github.com/checkmarx/correlation-demo/internal/service"
 )
 
+// repoCreator is the subset of repository.RepositoryStore used by the handler.
+// It is defined as an interface to allow test stubs to be injected.
+type repoCreator interface {
+	Create(name, gitURL, repoType string) (int64, error)
+	GetByID(id int) (*models.Repository, error)
+	List() ([]*models.Repository, error)
+}
+
 type Handler struct {
-	repoStore  *repository.RepositoryStore
+	repoStore  repoCreator
 	validator  *service.DomainValidator
 	gitService *service.GitService
 }
@@ -49,12 +57,12 @@ func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !h.validator.IsWhitelisted(gitURL) {
-		log.Printf("[VALIDATION] Rejected non-whitelisted domain: %s", gitURL)
+		log.Printf("[VALIDATION] Rejected non-whitelisted domain: %q", gitURL)
 		http.Error(w, "Only whitelisted domains are allowed (github.com, gitlab.com)", http.StatusBadRequest)
 		return
 	}
 
-	log.Printf("[VALIDATION] Domain validated successfully: %s", gitURL)
+	log.Printf("[VALIDATION] Domain validated successfully: %q", gitURL)
 
 	lastID, err := h.repoStore.Create(name, gitURL, repoType)
 	if err != nil {
@@ -62,7 +70,7 @@ func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[REPO] Created repo ID=%d, name='%s', url='%s'", lastID, name, gitURL)
+	log.Printf("[REPO] Created repo ID=%d, name=%q, url=%q", lastID, name, gitURL)
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
