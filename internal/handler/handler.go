@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/checkmarx/correlation-demo/internal/models"
 	"github.com/checkmarx/correlation-demo/internal/repository"
@@ -35,9 +36,12 @@ func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	name := r.FormValue("name")
-	gitURL := r.FormValue("git_url")
-	repoType := r.FormValue("repo_type")
+	// Sanitize user inputs to prevent log forging (CWE-117).
+	// Strip CR/LF characters that could be used to inject fake log entries.
+	logSanitizer := strings.NewReplacer("\n", "", "\r", "")
+	name := logSanitizer.Replace(r.FormValue("name"))
+	gitURL := logSanitizer.Replace(r.FormValue("git_url"))
+	repoType := logSanitizer.Replace(r.FormValue("repo_type"))
 
 	if name == "" || gitURL == "" {
 		http.Error(w, "Missing required fields", http.StatusBadRequest)
