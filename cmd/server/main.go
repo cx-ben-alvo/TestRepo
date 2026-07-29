@@ -50,7 +50,8 @@ func main() {
 	fmt.Println("  GET  /api/repo/list - List all repos")
 	fmt.Println("")
 
-	log.Fatal(http8.ListenAndServe(cfg.ServerPort, nil))
+	// Wrap the default mux with security headers middleware (CSP, etc.)
+	log.Fatal(http8.ListenAndServe(cfg.ServerPort, handler.SecurityHeadersMiddleware(http8.DefaultServeMux)))
 }
 
 func initDirs(cfg *config.Config) {
