@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
-	http8 "net/http"
+	"net/http"
 	"os"
 
 	"github.com/checkmarx/correlation-demo/internal/config"
@@ -16,6 +16,12 @@ import (
 func main() {
 	// Load configuration
 	cfg := config.Load()
+
+	// Require TLS certificate and key to enforce encrypted transport (CWE-319)
+	if cfg.TLSCertFile == "" || cfg.TLSKeyFile == "" {
+		log.Fatal("TLS_CERT_FILE and TLS_KEY_FILE environment variables must be set. " +
+			"Plain-text HTTP is not supported; all traffic must use TLS.")
+	}
 
 	// Initialize directories
 	initDirs(cfg)
@@ -36,12 +42,12 @@ func main() {
 	h := handler.NewHandler(repoStore, validator, gitService)
 
 	// Register routes
-	http8.HandleFunc("/api/repo/create", h.CreateRepo)
-	http8.HandleFunc("/api/repo/clone", h.CloneRepo)
-	http8.HandleFunc("/api/repo/list", h.ListRepos)
+	http.HandleFunc("/api/repo/create", h.CreateRepo)
+	http.HandleFunc("/api/repo/clone", h.CloneRepo)
+	http.HandleFunc("/api/repo/list", h.ListRepos)
 
-	// Start server
-	fmt.Printf("Server starting on %s\n", cfg.ServerPort)
+	// Start TLS server — all traffic is encrypted in transit
+	fmt.Printf("Server starting (TLS) on %s\n", cfg.ServerPort)
 	fmt.Println("")
 	fmt.Println("Endpoints:")
 	fmt.Println("  POST /api/repo/create - Create repo")
@@ -50,7 +56,7 @@ func main() {
 	fmt.Println("  GET  /api/repo/list - List all repos")
 	fmt.Println("")
 
-	log.Fatal(http8.ListenAndServe(cfg.ServerPort, nil))
+	log.Fatal(http.ListenAndServeTLS(cfg.ServerPort, cfg.TLSCertFile, cfg.TLSKeyFile, nil))
 }
 
 func initDirs(cfg *config.Config) {
