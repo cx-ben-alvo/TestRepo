@@ -3,7 +3,7 @@ module github.com/checkmarx/correlation-demo
 go 1.19
 
 require (
-	github.com/go-git/go-git/v5 v5.10.0
+	github.com/go-git/go-git/v5 v5.10.1-0.20231025131921-94671f8812af
 	github.com/mattn/go-sqlite3 v1.14.32
 )
 
