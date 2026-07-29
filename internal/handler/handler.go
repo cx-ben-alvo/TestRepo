@@ -11,6 +11,22 @@ import (
 	"github.com/checkmarx/correlation-demo/internal/service"
 )
 
+// contentSecurityPolicy is the CSP header value applied to all responses.
+// It restricts resource loading to the same origin and disables inline
+// scripts/styles to mitigate XSS and data-injection attacks.
+const contentSecurityPolicy = "default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; frame-ancestors 'none'"
+
+// SecurityHeadersMiddleware wraps an http.Handler and sets the
+// Content-Security-Policy (and related security) headers on every response.
+func SecurityHeadersMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Security-Policy", contentSecurityPolicy)
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		next.ServeHTTP(w, r)
+	})
+}
+
 type Handler struct {
 	repoStore  *repository.RepositoryStore
 	validator  *service.DomainValidator
