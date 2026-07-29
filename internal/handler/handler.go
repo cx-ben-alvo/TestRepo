@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/checkmarx/correlation-demo/internal/models"
 	"github.com/checkmarx/correlation-demo/internal/repository"
@@ -35,7 +36,11 @@ func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	name := r.FormValue("name")
+	// Sanitize user-supplied inputs at the input boundary to prevent log forging (CWE-117).
+	// Newline and carriage-return characters are stripped because they are the primary
+	// vector for injecting fake log entries.
+	logSanitizer := strings.NewReplacer("\n", "", "\r", "")
+	name := logSanitizer.Replace(r.FormValue("name"))
 	gitURL := r.FormValue("git_url")
 	repoType := r.FormValue("repo_type")
 
