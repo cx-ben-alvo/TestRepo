@@ -50,7 +50,13 @@ func main() {
 	fmt.Println("  GET  /api/repo/list - List all repos")
 	fmt.Println("")
 
-	log.Fatal(http9.ListenAndServe(cfg.ServerPort, nil))
+	// TLS certificate and key paths must be provided via TLS_CERT_FILE and
+	// TLS_KEY_FILE environment variables. Using ListenAndServeTLS ensures all
+	// traffic is encrypted in transit (CWE-319 / OWASP A02:2021).
+	if cfg.TLSCertFile == "" || cfg.TLSKeyFile == "" {
+		log.Fatal("TLS_CERT_FILE and TLS_KEY_FILE environment variables must be set")
+	}
+	log.Fatal(http9.ListenAndServeTLS(cfg.ServerPort, cfg.TLSCertFile, cfg.TLSKeyFile, nil))
 }
 
 func initDirs(cfg *config.Config) {
