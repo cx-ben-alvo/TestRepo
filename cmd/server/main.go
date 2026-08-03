@@ -35,10 +35,11 @@ func main() {
 	// Initialize handler
 	h := handler.NewHandler(repoStore, validator, gitService)
 
-	// Register routes
-	http9.HandleFunc("/api/repo/create", h.CreateRepo)
-	http9.HandleFunc("/api/repo/clone", h.CloneRepo)
-	http9.HandleFunc("/api/repo/list", h.ListRepos)
+	// Register routes — wrapped with SecurityHeaders middleware so that every
+	// response carries Content-Security-Policy and other protective headers.
+	http9.HandleFunc("/api/repo/create", handler.SecurityHeaders(h.CreateRepo))
+	http9.HandleFunc("/api/repo/clone", handler.SecurityHeaders(h.CloneRepo))
+	http9.HandleFunc("/api/repo/list", handler.SecurityHeaders(h.ListRepos))
 
 	// Start server
 	fmt.Printf("Server starting on %s\n", cfg.ServerPort)
