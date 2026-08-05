@@ -29,6 +29,25 @@ func NewHandler(
 	}
 }
 
+// SecurityHeaders is a middleware that sets security-related HTTP response
+// headers on every response, including a strict Content-Security-Policy.
+func SecurityHeaders(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Prevent the response from being framed (clickjacking protection).
+		w.Header().Set("X-Frame-Options", "DENY")
+		// Prevent MIME-type sniffing.
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		// Enable the browser's XSS filter (legacy browsers).
+		w.Header().Set("X-XSS-Protection", "1; mode=block")
+		// Restrict referrer information.
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		// Content-Security-Policy: this is a JSON-only API; no scripts,
+		// styles, or embedded content are served by these endpoints.
+		w.Header().Set("Content-Security-Policy", "default-src 'none'")
+		next(w, r)
+	}
+}
+
 func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -64,6 +83,7 @@ func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("[REPO] Created repo ID=%d, name='%s', url='%s'", lastID, name, gitURL)
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"id":      lastID,
@@ -112,6 +132,7 @@ func (h *Handler) CloneRepo(w http.ResponseWriter, r *http.Request) {
 		"files":     result.Files,
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -144,5 +165,6 @@ func (h *Handler) ListRepos(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(repoMaps)
 }
