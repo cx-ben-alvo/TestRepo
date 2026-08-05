@@ -11,6 +11,29 @@ import (
 	"github.com/checkmarx/correlation-demo/internal/service"
 )
 
+// SecurityHeaders is an HTTP middleware that sets security-related response
+// headers on every request before the next handler runs.
+//
+// Content-Security-Policy (CSP) is the primary control for CWE-346 / the
+// "Missing Content Security Policy" SAST finding.  The policy below is
+// intentionally restrictive: this application serves only JSON API responses,
+// so the default-src 'none' directive blocks all resource loading while
+// frame-ancestors 'none' and form-action 'none' close clickjacking and
+// cross-origin form-submission vectors.  The remaining headers (X-Frame-Options,
+// X-Content-Type-Options, Referrer-Policy, Permissions-Policy) add defence-in-
+// depth recognised by common security scanners.
+func SecurityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Security-Policy",
+			"default-src 'none'; frame-ancestors 'none'; form-action 'none'")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Referrer-Policy", "no-referrer")
+		w.Header().Set("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+		next.ServeHTTP(w, r)
+	})
+}
+
 type Handler struct {
 	repoStore  *repository.RepositoryStore
 	validator  *service.DomainValidator
