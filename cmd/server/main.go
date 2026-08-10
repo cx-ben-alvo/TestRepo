@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
-	http9 "net/http"
+	"net/http"
 	"os"
 
 	"github.com/checkmarx/correlation-demo/internal/config"
@@ -16,6 +16,12 @@ import (
 func main() {
 	// Load configuration
 	cfg := config.Load()
+
+	// Require TLS certificate and key to be configured; refuse to start
+	// without them so the server never accidentally runs over plain HTTP.
+	if cfg.TLSCertFile == "" || cfg.TLSKeyFile == "" {
+		log.Fatal("TLS_CERT_FILE and TLS_KEY_FILE environment variables must be set to start the server over HTTPS")
+	}
 
 	// Initialize directories
 	initDirs(cfg)
@@ -36,12 +42,15 @@ func main() {
 	h := handler.NewHandler(repoStore, validator, gitService)
 
 	// Register routes
-	http9.HandleFunc("/api/repo/create", h.CreateRepo)
-	http9.HandleFunc("/api/repo/clone", h.CloneRepo)
-	http9.HandleFunc("/api/repo/list", h.ListRepos)
+	http.HandleFunc("/api/repo/create", h.CreateRepo)
+	http.HandleFunc("/api/repo/clone", h.CloneRepo)
+	http.HandleFunc("/api/repo/list", h.ListRepos)
 
-	// Start server
-	fmt.Printf("Server starting on %s\n", cfg.ServerPort)
+	// Start server with TLS to protect data in transit (CWE-319).
+	// ListenAndServeTLS requires a valid TLS certificate and private key;
+	// all traffic is encrypted using TLS so no sensitive data travels in
+	// plain text.
+	fmt.Printf("Server starting (HTTPS) on %s\n", cfg.ServerPort)
 	fmt.Println("")
 	fmt.Println("Endpoints:")
 	fmt.Println("  POST /api/repo/create - Create repo")
@@ -50,7 +59,7 @@ func main() {
 	fmt.Println("  GET  /api/repo/list - List all repos")
 	fmt.Println("")
 
-	log.Fatal(http9.ListenAndServe(cfg.ServerPort, nil))
+	log.Fatal(http.ListenAndServeTLS(cfg.ServerPort, cfg.TLSCertFile, cfg.TLSKeyFile, nil))
 }
 
 func initDirs(cfg *config.Config) {
