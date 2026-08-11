@@ -50,16 +50,16 @@ func main() {
 	fmt.Println("  GET  /api/repo/list - List all repos")
 	fmt.Println("")
 
-	// Use TLS (HTTPS) when certificate and key files are provided via environment
-	// variables TLS_CERT_FILE and TLS_KEY_FILE. This prevents cleartext transmission
-	// of sensitive data over the network (CWE-319).
-	if cfg.TLSEnabled() {
-		fmt.Printf("TLS enabled (cert: %s)\n", cfg.TLSCertFile)
-		log.Fatal(http9.ListenAndServeTLS(cfg.ServerPort, cfg.TLSCertFile, cfg.TLSKeyFile, nil))
-	} else {
-		log.Println("WARNING: TLS is not configured. Set TLS_CERT_FILE and TLS_KEY_FILE environment variables to enable HTTPS.")
-		log.Fatal(http9.ListenAndServe(cfg.ServerPort, nil))
+	// TLS (HTTPS) is required. The server will not start without a valid
+	// certificate and key file. Set TLS_CERT_FILE and TLS_KEY_FILE environment
+	// variables to provide the paths to PEM-encoded certificate and private key
+	// files respectively. This enforces encrypted transport and prevents
+	// cleartext transmission of sensitive data (CWE-319).
+	if !cfg.TLSEnabled() {
+		log.Fatal("TLS configuration is required: set TLS_CERT_FILE and TLS_KEY_FILE environment variables to enable HTTPS.")
 	}
+	fmt.Printf("TLS enabled (cert: %s)\n", cfg.TLSCertFile)
+	log.Fatal(http9.ListenAndServeTLS(cfg.ServerPort, cfg.TLSCertFile, cfg.TLSKeyFile, nil))
 }
 
 func initDirs(cfg *config.Config) {
