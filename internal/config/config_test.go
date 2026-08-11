@@ -134,3 +134,62 @@ func TestLoad_TLSEnabledWhenEnvVarsSet(t *testing.T) {
 		t.Error("expected TLS to be enabled when TLS_CERT_FILE and TLS_KEY_FILE env vars are set")
 	}
 }
+
+// TestTLSEnforcement_ServerMustRejectPlainHTTP verifies the enforcement gate:
+// when TLS is NOT configured the application must refuse to proceed (i.e.
+// TLSEnabled() returns false, which triggers log.Fatal in main). This prevents
+// accidental plain-text HTTP deployment (CWE-319).
+func TestTLSEnforcement_ServerMustRejectPlainHTTP(t *testing.T) {
+	cases := []struct {
+		name     string
+		certFile string
+		keyFile  string
+		wantTLS  bool
+	}{
+		{
+			name:     "no TLS config – server must be blocked",
+			certFile: "",
+			keyFile:  "",
+			wantTLS:  false,
+		},
+		{
+			name:     "cert only – server must be blocked (incomplete config)",
+			certFile: "/etc/tls/server.crt",
+			keyFile:  "",
+			wantTLS:  false,
+		},
+		{
+			name:     "key only – server must be blocked (incomplete config)",
+			certFile: "",
+			keyFile:  "/etc/tls/server.key",
+			wantTLS:  false,
+		},
+		{
+			name:     "both cert and key – server allowed to proceed with TLS",
+			certFile: "/etc/tls/server.crt",
+			keyFile:  "/etc/tls/server.key",
+			wantTLS:  true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := &Config{
+				ServerPort:  ":8443",
+				TLSCertFile: tc.certFile,
+				TLSKeyFile:  tc.keyFile,
+			}
+			got := cfg.TLSEnabled()
+			if got != tc.wantTLS {
+				t.Errorf("TLSEnabled() = %v, want %v (cert=%q, key=%q)",
+					got, tc.wantTLS, tc.certFile, tc.keyFile)
+			}
+			// When TLS is not enabled, the server startup guard (main.go) calls
+			// log.Fatal. Confirm the predicate that triggers the guard is correct.
+			if !tc.wantTLS && got {
+				t.Error("plain-HTTP path is reachable: TLSEnabled() returned true for incomplete TLS config, " +
+					"which would bypass the CWE-319 enforcement gate in main()")
+			}
+		})
+	}
+}
