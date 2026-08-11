@@ -70,7 +70,7 @@ func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[VALIDATION] Domain validated successfully: %s", gitURL)
+	log.Printf("[VALIDATION] Domain validated successfully: %q", gitURL)
 
 	lastID, err := h.repoStore.Create(name, gitURL, repoType)
 	if err != nil {
