@@ -11,6 +11,20 @@ import (
 	"github.com/checkmarx/correlation-demo/internal/service"
 )
 
+// contentSecurityPolicy is the CSP header value applied to all API responses.
+// It restricts resource loading to same-origin only, disables inline scripts
+// and styles, and blocks framing (clickjacking) to satisfy CWE-346.
+const contentSecurityPolicy = "default-src 'self'; script-src 'self'; style-src 'self'; object-src 'none'; frame-ancestors 'none'"
+
+// setSecurityHeaders writes the standard security headers required for all
+// responses, including the Content-Security-Policy that prevents XSS and
+// data-injection attacks (CWE-346).
+func setSecurityHeaders(w http.ResponseWriter) {
+	w.Header().Set("Content-Security-Policy", contentSecurityPolicy)
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("X-Frame-Options", "DENY")
+}
+
 type Handler struct {
 	repoStore  *repository.RepositoryStore
 	validator  *service.DomainValidator
@@ -30,6 +44,8 @@ func NewHandler(
 }
 
 func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
+	setSecurityHeaders(w)
+
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -64,6 +80,7 @@ func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("[REPO] Created repo ID=%d, name='%s', url='%s'", lastID, name, gitURL)
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"id":      lastID,
@@ -72,6 +89,8 @@ func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) CloneRepo(w http.ResponseWriter, r *http.Request) {
+	setSecurityHeaders(w)
+
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -112,11 +131,14 @@ func (h *Handler) CloneRepo(w http.ResponseWriter, r *http.Request) {
 		"files":     result.Files,
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
 
 // ListRepos handles listing all repositories
 func (h *Handler) ListRepos(w http.ResponseWriter, r *http.Request) {
+	setSecurityHeaders(w)
+
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -144,5 +166,6 @@ func (h *Handler) ListRepos(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(repoMaps)
 }
