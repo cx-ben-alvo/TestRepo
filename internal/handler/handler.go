@@ -5,11 +5,17 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/checkmarx/correlation-demo/internal/models"
 	"github.com/checkmarx/correlation-demo/internal/repository"
 	"github.com/checkmarx/correlation-demo/internal/service"
 )
+
+// logSanitizer removes newline and carriage-return characters from user-supplied
+// strings before they are written to log output, preventing log-forging attacks
+// (CWE-117).  The replacer is a package-level value so it is allocated once.
+var logSanitizer = strings.NewReplacer("\n", "", "\r", "")
 
 type Handler struct {
 	repoStore  *repository.RepositoryStore
@@ -35,7 +41,7 @@ func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	name := r.FormValue("name")
+	name := logSanitizer.Replace(r.FormValue("name"))
 	gitURL := r.FormValue("git_url")
 	repoType := r.FormValue("repo_type")
 
