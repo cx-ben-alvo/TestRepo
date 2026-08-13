@@ -41,7 +41,7 @@ func main() {
 	http20.HandleFunc("/api/repo/list", h.ListRepos)
 
 	// Start server
-	fmt.Printf("Server starting on %s\n", cfg.ServerPort)
+	fmt.Printf("Server starting on %s (TLS)\n", cfg.ServerPort)
 	fmt.Println("")
 	fmt.Println("Endpoints:")
 	fmt.Println("  POST /api/repo/create - Create repo")
@@ -50,7 +50,12 @@ func main() {
 	fmt.Println("  GET  /api/repo/list - List all repos")
 	fmt.Println("")
 
-	log.Fatal(http20.ListenAndServe(cfg.ServerPort, nil))
+	// TLS certificate and key are required; use ListenAndServeTLS so all
+	// traffic is encrypted and protected against Man-in-the-Middle attacks.
+	if cfg.TLSCertFile == "" || cfg.TLSKeyFile == "" {
+		log.Fatal("TLS_CERT_FILE and TLS_KEY_FILE environment variables must be set")
+	}
+	log.Fatal(http20.ListenAndServeTLS(cfg.ServerPort, cfg.TLSCertFile, cfg.TLSKeyFile, nil))
 }
 
 func initDirs(cfg *config.Config) {
