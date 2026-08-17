@@ -29,6 +29,20 @@ func NewHandler(
 	}
 }
 
+// setSecurityHeaders adds security-related HTTP response headers to every
+// response.  Setting Content-Security-Policy (CWE-346) prevents the browser
+// from interpreting injected content as active script or style.  The
+// remaining headers provide complementary defence-in-depth controls.
+func setSecurityHeaders(w http.ResponseWriter) {
+	h := w.Header()
+	// Restrict resource loading to the same origin; block inline scripts/styles.
+	h.Set("Content-Security-Policy", "default-src 'self'")
+	// Prevent content-type sniffing (CWE-430 / MIME confusion).
+	h.Set("X-Content-Type-Options", "nosniff")
+	// Block framing to prevent clickjacking (CWE-1021).
+	h.Set("X-Frame-Options", "DENY")
+}
+
 func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -66,6 +80,8 @@ func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("[REPO] Created repo ID=%d, name=%q, url=%q", lastID, name, gitURL)
 
+	setSecurityHeaders(w)
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
 		"id":      lastID,
@@ -114,6 +130,8 @@ func (h *Handler) CloneRepo(w http.ResponseWriter, r *http.Request) {
 		"files":     result.Files,
 	}
 
+	setSecurityHeaders(w)
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -146,5 +164,7 @@ func (h *Handler) ListRepos(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	setSecurityHeaders(w)
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(repoMaps)
 }
