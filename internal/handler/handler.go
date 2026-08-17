@@ -49,12 +49,14 @@ func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !h.validator.IsWhitelisted(gitURL) {
-		log.Printf("[VALIDATION] Rejected non-whitelisted domain: %s", gitURL)
+		// Use %q to quote and escape user-supplied input, preventing log forging
+		// (CWE-117): newlines and control characters are safely escaped.
+		log.Printf("[VALIDATION] Rejected non-whitelisted domain: %q", gitURL)
 		http.Error(w, "Only whitelisted domains are allowed (github.com, gitlab.com)", http.StatusBadRequest)
 		return
 	}
 
-	log.Printf("[VALIDATION] Domain validated successfully: %s", gitURL)
+	log.Printf("[VALIDATION] Domain validated successfully: %q", gitURL)
 
 	lastID, err := h.repoStore.Create(name, gitURL, repoType)
 	if err != nil {
@@ -62,7 +64,7 @@ func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[REPO] Created repo ID=%d, name='%s', url='%s'", lastID, name, gitURL)
+	log.Printf("[REPO] Created repo ID=%d, name=%q, url=%q", lastID, name, gitURL)
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
