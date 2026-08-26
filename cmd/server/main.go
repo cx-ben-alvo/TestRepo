@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
-	http20 "net/http"
+	"net/http"
 	"os"
 
 	"github.com/checkmarx/correlation-demo/internal/config"
@@ -36,9 +36,9 @@ func main() {
 	h := handler.NewHandler(repoStore, validator, gitService)
 
 	// Register routes
-	http20.HandleFunc("/api/repo/create", h.CreateRepo)
-	http20.HandleFunc("/api/repo/clone", h.CloneRepo)
-	http20.HandleFunc("/api/repo/list", h.ListRepos)
+	http.HandleFunc("/api/repo/create", h.CreateRepo)
+	http.HandleFunc("/api/repo/clone", h.CloneRepo)
+	http.HandleFunc("/api/repo/list", h.ListRepos)
 
 	// Start server
 	fmt.Printf("Server starting on %s\n", cfg.ServerPort)
@@ -50,7 +50,15 @@ func main() {
 	fmt.Println("  GET  /api/repo/list - List all repos")
 	fmt.Println("")
 
-	log.Fatal(http20.ListenAndServe(cfg.ServerPort, nil))
+	// Require TLS certificate and key to protect data in transit (CWE-319).
+	// Set TLS_CERT_FILE and TLS_KEY_FILE environment variables to paths of a
+	// valid PEM-encoded certificate and private key respectively.
+	// Serving over plain HTTP exposes all traffic to man-in-the-middle attacks.
+	if cfg.TLSCertFile == "" || cfg.TLSKeyFile == "" {
+		log.Fatal("TLS_CERT_FILE and TLS_KEY_FILE must be set; refusing to start without TLS")
+	}
+	log.Printf("Starting HTTPS server on %s", cfg.ServerPort)
+	log.Fatal(http.ListenAndServeTLS(cfg.ServerPort, cfg.TLSCertFile, cfg.TLSKeyFile, nil))
 }
 
 func initDirs(cfg *config.Config) {
