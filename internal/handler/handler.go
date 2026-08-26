@@ -29,6 +29,18 @@ func NewHandler(
 	}
 }
 
+// WithSecurityHeaders wraps an http.HandlerFunc to add security-related HTTP
+// response headers, including the Content-Security-Policy (CSP) header, to
+// every response served by this application (CWE-346 remediation).
+func WithSecurityHeaders(fn http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Restrict content sources to the same origin. These are JSON API
+		// endpoints; no scripts, styles, images, or frames are served.
+		w.Header().Set("Content-Security-Policy", "default-src 'self'")
+		fn(w, r)
+	}
+}
+
 func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
