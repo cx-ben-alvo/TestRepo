@@ -74,7 +74,9 @@ func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("[REPO] Created repo ID=%d, name='%s', url='%s'", lastID, name, gitURL)
+	// Use %q to quote and escape user-supplied strings, preventing log forging
+	// via embedded newlines or control characters (CWE-117).
+	log.Printf("[REPO] Created repo ID=%d, name=%q, url=%q", lastID, name, gitURL)
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
