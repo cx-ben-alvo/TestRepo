@@ -1,4 +1,4 @@
-.PHONY: build run clean test fmt vet
+.PHONY: build run clean test fmt vet 
 
 # Build the application
 build:
