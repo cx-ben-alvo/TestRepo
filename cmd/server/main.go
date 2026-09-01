@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
-	http21 "net/http"
+	http22 "net/http"
 	"os"
 
 	"github.com/checkmarx/correlation-demo/internal/config"
@@ -36,9 +36,9 @@ func main() {
 	h := handler.NewHandler(repoStore, validator, gitService)
 
 	// Register routes
-	http21.HandleFunc("/api/repo/create", h.CreateRepo)
-	http21.HandleFunc("/api/repo/clone", h.CloneRepo)
-	http21.HandleFunc("/api/repo/list", h.ListRepos)
+	http22.HandleFunc("/api/repo/create", h.CreateRepo)
+	http22.HandleFunc("/api/repo/clone", h.CloneRepo)
+	http22.HandleFunc("/api/repo/list", h.ListRepos)
 
 	// Start server
 	fmt.Printf("Server starting on %s\n", cfg.ServerPort)
