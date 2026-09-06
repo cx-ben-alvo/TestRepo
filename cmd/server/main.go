@@ -35,10 +35,11 @@ func main() {
 	// Initialize handler
 	h := handler.NewHandler(repoStore, validator, gitService)
 
-	// Register routes
-	http26.HandleFunc("/api/repo/create", h.CreateRepo)
-	http26.HandleFunc("/api/repo/clone", h.CloneRepo)
-	http26.HandleFunc("/api/repo/list", h.ListRepos)
+	// Register routes — all responses include a Content-Security-Policy header
+	// via the WithCSP middleware wrapper (CWE-346).
+	http26.HandleFunc("/api/repo/create", handler.WithCSP(h.CreateRepo))
+	http26.HandleFunc("/api/repo/clone", handler.WithCSP(h.CloneRepo))
+	http26.HandleFunc("/api/repo/list", handler.WithCSP(h.ListRepos))
 
 	// Start server
 	fmt.Printf("Server starting on %s\n", cfg.ServerPort)
