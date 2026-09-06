@@ -2,7 +2,6 @@ package repository
 
 import (
 	"database/sql"
-	"fmt"
 
 	"github.com/checkmarx/correlation-demo/internal/models"
 )
@@ -18,13 +17,13 @@ func NewRepositoryStore(db *sql.DB) *RepositoryStore {
 }
 
 func (r *RepositoryStore) Create(name, gitURL, repoType string) (int64, error) {
-	db := r.db
-	query := fmt.Sprintf(
-		"INSERT INTO repos (name, git_url, repo_type) VALUES ('%s', '%s', '%s')",
+	// Use a parameterized query to prevent SQL injection.
+	// User-supplied values are passed as separate arguments, never interpolated
+	// into the query string.
+	result, err := r.db.Exec(
+		"INSERT INTO repos (name, git_url, repo_type) VALUES (?, ?, ?)",
 		name, gitURL, repoType,
 	)
-
-	result, err := db.Exec(query)
 	if err != nil {
 		return 0, err
 	}
