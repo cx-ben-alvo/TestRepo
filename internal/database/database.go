@@ -7,9 +7,11 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// InitDB initializes the database and creates necessary tables
-func InitDB() (*sql.DB, error) {
-	db, err := sql.Open("sqlite3", ":memory:")
+// InitDB initializes the database and creates necessary tables.
+// dsn is the SQLite data source name supplied by the caller (e.g. from the
+// DATABASE_DSN environment variable) so that no connection detail is hardcoded.
+func InitDB(dsn string) (*sql.DB, error) {
+	db, err := sql.Open("sqlite3", dsn)
 	if err != nil {
 		return nil, err
 	}
