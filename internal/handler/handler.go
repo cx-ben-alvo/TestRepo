@@ -11,6 +11,20 @@ import (
 	"github.com/checkmarx/correlation-demo/internal/service"
 )
 
+// ContentSecurityPolicy is the CSP header value applied to all responses.
+// It restricts content sources to the same origin, mitigating XSS and
+// content-injection attacks (CWE-346).
+const ContentSecurityPolicy = "default-src 'self'"
+
+// WithCSP wraps an http.HandlerFunc to set a strict Content-Security-Policy
+// header on every response before the handler writes any content.
+func WithCSP(fn http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Security-Policy", ContentSecurityPolicy)
+		fn(w, r)
+	}
+}
+
 type Handler struct {
 	repoStore  *repository.RepositoryStore
 	validator  *service.DomainValidator
