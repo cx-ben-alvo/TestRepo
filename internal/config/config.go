@@ -7,6 +7,10 @@ type Config struct {
 	ServerPort  string
 	CloneDir    string
 	DownloadDir string
+	// DatabaseDSN is the SQLite data source name (DSN).
+	// Set the DATABASE_DSN environment variable to override the default
+	// in-memory database (e.g. a file path such as "/data/app.db").
+	DatabaseDSN string
 }
 
 // Load loads configuration from environment variables or defaults
@@ -15,6 +19,7 @@ func Load() *Config {
 		ServerPort:  getEnv("SERVER_PORT", ":8081"),
 		CloneDir:    getEnv("CLONE_DIR", "/Users/benalvo/clones"),
 		DownloadDir: getEnv("DOWNLOAD_DIR", "/Users/benalvo/downloads"),
+		DatabaseDSN: getEnv("DATABASE_DSN", ":memory:"),
 	}
 }
 
