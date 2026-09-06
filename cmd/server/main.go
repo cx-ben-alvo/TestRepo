@@ -20,8 +20,9 @@ func main() {
 	// Initialize directories
 	initDirs(cfg)
 
-	// Initialize database
-	db, err := database.InitDB()
+	// Initialize database — DSN is sourced from the DATABASE_DSN environment
+	// variable (defaulting to ":memory:" when unset).
+	db, err := database.InitDB(cfg.DatabaseDSN)
 	if err != nil {
 		log.Fatal(err)
 	}
