@@ -20,8 +20,8 @@ func main() {
 	// Initialize directories
 	initDirs(cfg)
 
-	// Initialize database
-	db, err := database.InitDB()
+	// Initialize database using DSN from configuration (no hardcoded connection string)
+	db, err := database.InitDB(cfg.DatabaseDSN)
 	if err != nil {
 		log.Fatal(err)
 	}
