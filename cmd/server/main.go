@@ -40,8 +40,14 @@ func main() {
 	http26.HandleFunc("/api/repo/clone", h.CloneRepo)
 	http26.HandleFunc("/api/repo/list", h.ListRepos)
 
+	// Require TLS certificate and key to be configured.
+	// The server must not start over plain HTTP; all traffic must use TLS.
+	if cfg.TLSCertFile == "" || cfg.TLSKeyFile == "" {
+		log.Fatal("TLS_CERT_FILE and TLS_KEY_FILE environment variables must be set to start the server over HTTPS")
+	}
+
 	// Start server
-	fmt.Printf("Server starting on %s\n", cfg.ServerPort)
+	fmt.Printf("Server starting on %s (HTTPS)\n", cfg.ServerPort)
 	fmt.Println("")
 	fmt.Println("Endpoints:")
 	fmt.Println("  POST /api/repo/create - Create repo")
@@ -50,7 +56,9 @@ func main() {
 	fmt.Println("  GET  /api/repo/list - List all repos")
 	fmt.Println("")
 
-	log.Fatal(http26.ListenAndServe(cfg.ServerPort, nil))
+	// Use TLS (HTTPS) to protect data in transit against eavesdropping and
+	// Man-in-the-Middle attacks (CWE-319).
+	log.Fatal(http26.ListenAndServeTLS(cfg.ServerPort, cfg.TLSCertFile, cfg.TLSKeyFile, nil))
 }
 
 func initDirs(cfg *config.Config) {
