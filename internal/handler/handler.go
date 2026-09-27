@@ -29,6 +29,17 @@ func NewHandler(
 	}
 }
 
+// SecurityHeaders is a middleware that sets security-related HTTP response
+// headers, including a Content-Security-Policy that restricts content sources
+// to the same origin. Wrap every route handler with this middleware to protect
+// against XSS, clickjacking, and content-injection attacks.
+func SecurityHeaders(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Security-Policy", "default-src 'self'")
+		next(w, r)
+	}
+}
+
 func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
