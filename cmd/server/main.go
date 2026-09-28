@@ -50,7 +50,15 @@ func main() {
 	fmt.Println("  GET  /api/repo/list - List all repos")
 	fmt.Println("")
 
-	log.Fatal(http26.ListenAndServe(cfg.ServerPort, nil))
+	// Use TLS (HTTPS) when certificate and key paths are configured to prevent
+	// Man-in-the-Middle attacks (CWE-319). TLS_CERT_FILE and TLS_KEY_FILE
+	// environment variables must be set to enable encrypted transport.
+	if cfg.TLSEnabled() {
+		fmt.Println("TLS enabled: serving over HTTPS")
+		log.Fatal(http26.ListenAndServeTLS(cfg.ServerPort, cfg.TLSCertFile, cfg.TLSKeyFile, nil))
+	} else {
+		log.Fatal(fmt.Errorf("TLS is required: set TLS_CERT_FILE and TLS_KEY_FILE environment variables to enable HTTPS"))
+	}
 }
 
 func initDirs(cfg *config.Config) {
