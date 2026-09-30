@@ -35,10 +35,10 @@ func main() {
 	// Initialize handler
 	h := handler.NewHandler(repoStore, validator, gitService)
 
-	// Register routes
-	http26.HandleFunc("/api/repo/create", h.CreateRepo)
-	http26.HandleFunc("/api/repo/clone", h.CloneRepo)
-	http26.HandleFunc("/api/repo/list", h.ListRepos)
+	// Register routes — wrapped with SecurityHeaders middleware to set CSP on all responses
+	http26.HandleFunc("/api/repo/create", handler.SecurityHeaders(h.CreateRepo))
+	http26.HandleFunc("/api/repo/clone", handler.SecurityHeaders(h.CloneRepo))
+	http26.HandleFunc("/api/repo/list", handler.SecurityHeaders(h.ListRepos))
 
 	// Start server
 	fmt.Printf("Server starting on %s\n", cfg.ServerPort)
