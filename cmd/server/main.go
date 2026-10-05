@@ -40,8 +40,10 @@ func main() {
 	http26.HandleFunc("/api/repo/clone", h.CloneRepo)
 	http26.HandleFunc("/api/repo/list", h.ListRepos)
 
-	// Start server
-	fmt.Printf("Server starting on %s\n", cfg.ServerPort)
+	// Start server with TLS to protect data in transit (CWE-319).
+	// TLS certificate and key paths are configured via TLS_CERT_FILE and TLS_KEY_FILE
+	// environment variables (defaults: cert.pem / key.pem).
+	fmt.Printf("Server starting (TLS) on %s\n", cfg.ServerPort)
 	fmt.Println("")
 	fmt.Println("Endpoints:")
 	fmt.Println("  POST /api/repo/create - Create repo")
@@ -50,7 +52,7 @@ func main() {
 	fmt.Println("  GET  /api/repo/list - List all repos")
 	fmt.Println("")
 
-	log.Fatal(http26.ListenAndServe(cfg.ServerPort, nil))
+	log.Fatal(http26.ListenAndServeTLS(cfg.ServerPort, cfg.TLSCertFile, cfg.TLSKeyFile, nil))
 }
 
 func initDirs(cfg *config.Config) {
