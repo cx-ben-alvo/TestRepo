@@ -29,6 +29,21 @@ func NewHandler(
 	}
 }
 
+// SecurityHeaders is a middleware that sets security-related HTTP response headers
+// including a Content Security Policy (CSP) to mitigate cross-site scripting (XSS)
+// and other injection attacks (CWE-346).
+func SecurityHeaders(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Content-Security-Policy: restrict resource origins to mitigate XSS / data-injection
+		w.Header().Set("Content-Security-Policy", "default-src 'none'")
+		// Additional defensive headers
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "no-referrer")
+		next(w, r)
+	}
+}
+
 func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
