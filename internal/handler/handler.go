@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/checkmarx/correlation-demo/internal/models"
 	"github.com/checkmarx/correlation-demo/internal/repository"
@@ -49,7 +50,10 @@ func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !h.validator.IsWhitelisted(gitURL) {
-		log.Printf("[VALIDATION] Rejected non-whitelisted domain: %s", gitURL)
+		// Sanitize user input before logging to prevent log forging (CWE-117):
+		// strip CR and LF characters that could inject fake log entries.
+		logSafeURL := strings.NewReplacer("\r", "", "\n", "").Replace(gitURL)
+		log.Printf("[VALIDATION] Rejected non-whitelisted domain: %s", logSafeURL)
 		http.Error(w, "Only whitelisted domains are allowed (github.com, gitlab.com)", http.StatusBadRequest)
 		return
 	}
