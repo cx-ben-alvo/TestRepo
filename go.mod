@@ -31,3 +31,11 @@ require (
 	golang.org/x/tools v0.13.0 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
+
+// Pin github.com/cloudflare/circl to a patched pseudo-version that fixes the
+// kyberslash2 timing side-channel vulnerability (CWE-208). The tagged release
+// v1.3.3 is vulnerable; this commit contains the fix. A replace directive is
+// required because Go's MVS selects v1.3.3 (the tagged release demanded by
+// go-git), which sorts higher than the pre-release pseudo-version containing
+// the patch.
+replace github.com/cloudflare/circl v1.3.3 => github.com/cloudflare/circl v1.3.3-0.20230314073854-9d4f8c81e745
