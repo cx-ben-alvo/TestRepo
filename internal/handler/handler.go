@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/checkmarx/correlation-demo/internal/models"
 	"github.com/checkmarx/correlation-demo/internal/repository"
@@ -35,8 +36,8 @@ func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	name := r.FormValue("name")
-	gitURL := r.FormValue("git_url")
+	name := strings.NewReplacer("\n", "", "\r", "").Replace(r.FormValue("name"))
+	gitURL := strings.NewReplacer("\n", "", "\r", "").Replace(r.FormValue("git_url"))
 	repoType := r.FormValue("repo_type")
 
 	if name == "" || gitURL == "" {
