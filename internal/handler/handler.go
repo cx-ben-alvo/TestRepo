@@ -29,6 +29,16 @@ func NewHandler(
 	}
 }
 
+// SecurityHeaders sets security-related HTTP response headers, including
+// Content-Security-Policy, on every response to mitigate XSS, clickjacking,
+// and content-injection attacks (CWE-346).
+func SecurityHeaders(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Security-Policy", "default-src 'self'")
+		next(w, r)
+	}
+}
+
 func (h *Handler) CreateRepo(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
