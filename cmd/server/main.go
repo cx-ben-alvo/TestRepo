@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
-	http2 "net/http"
+	http3 "net/http"
 	"os"
 
 	"github.com/checkmarx/correlation-demo/internal/config"
@@ -36,9 +36,9 @@ func main() {
 	h := handler.NewHandler(repoStore, validator, gitService)
 
 	// Register routes
-	http2.HandleFunc("/api/repo/create", h.CreateRepo)
-	http2.HandleFunc("/api/repo/clone", h.CloneRepo)
-	http2.HandleFunc("/api/repo/list", h.ListRepos)
+	http3.HandleFunc("/api/repo/create", h.CreateRepo)
+	http3.HandleFunc("/api/repo/clone", h.CloneRepo)
+	http3.HandleFunc("/api/repo/list", h.ListRepos)
 
 	// Start server
 	fmt.Printf("Server starting on %s\n", cfg.ServerPort)
@@ -50,7 +50,7 @@ func main() {
 	fmt.Println("  GET  /api/repo/list - List all repos")
 	fmt.Println("")
 
-	log.Fatal(http2.ListenAndServe(cfg.ServerPort, nil))
+	log.Fatal(http3.ListenAndServe(cfg.ServerPort, nil))
 }
 
 func initDirs(cfg *config.Config) {
